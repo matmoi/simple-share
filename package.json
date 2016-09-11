@@ -1,5 +1,5 @@
 {
-  "name": "react-filesharer",
+  "name": "simple-share",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.js",
@@ -21,6 +21,6 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "browserify -t [ babelify --presets [ react ] ] src/main.js -o js/main.js"
   },
-  "author": "",
-  "license": "ISC"
+  "author": "matthieu moinard",
+  "license": "MIT"
 }
