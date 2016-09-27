@@ -5,7 +5,7 @@ var options = require('../../config/global.js');
 
 //Debugging
 window.myDebug = require("debug");
-myDebug.enable("*")
+myDebug.enable("simple-share");
 
 // var options = {
 // 	peerjs_key: 'ibggqp8erg5mte29'

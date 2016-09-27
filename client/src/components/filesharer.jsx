@@ -1,7 +1,7 @@
 var React = require('react');
 var randomstring = require('randomstring');
-//var Peer = require('peerjs');
-var WebSocket = require('simple-websocket');
+var io = require('socket.io-client');
+var io_patch = require('socketio-wildcard')(io.Manager);
 var Peer = require('simple-peer');
 var debug = require('debug')('simple-share');
 
@@ -12,22 +12,8 @@ module.exports = React.createClass({
 
 	getInitialState: function(){
 		return {
-			ws: new WebSocket(`ws://${this.props.opts.websocket.address}:${this.props.opts.websocket.port}`),
+			ws: io(`ws://${this.props.opts.websocket.address}:${this.props.opts.websocket.port}`),
 			peers: [],
-			//peer: new Peer({key: this.props.opts.peerjs_key}), //for testing
-			/*
-			//for production:
-			peer = new Peer({
-			  host: 'yourwebsite.com', port: 3000, path: '/peerjs',
-			  debug: 3,
-			  config: {'iceServers': [
-			    { url: 'stun:stun1.l.google.com:19302' },
-			    { url: 'turn:numb.viagenie.ca', credential: 'muazkh', username: 'webrtc@live.com' }
-			  ]}
-			})
-			*/
-			// my_id: '',
-			// peer_id: '',
 			initialized: false,
 			files: [],
 			status_message: 'Loading...'
@@ -35,74 +21,55 @@ module.exports = React.createClass({
 	},
 
 	componentWillMount: function() {
-		if (WebSocket.WEBSOCKET_SUPPORT) {
-			if (Peer.WEBRTC_SUPPORT) {
-			  	this.setState({
-					status_message : `Contacting server at ws://${this.props.opts.websocket.address}:${this.props.opts.websocket.port}`
-				});
-				
-				this.state.ws.on('connect', () => {
-					//waiting for peers 
-					this.setState({
-						status_message : `Waiting for peers`
-					});
-					
-					this.state.ws.on('data', (message) => {
-						debug(`received message from server`);
-						var peers = this.state.peers;
-						if (! this.state.initialized) {
-							// first message should contain webRTC signaling info from other peers
-							var remote_signals = JSON.parse(message);
-							this.setState({
-								status_message : (remote_signals.length > 0 ? `Connecting to ${remote_signals.length} peers` : `No peers available, waiting for users`)
-							});
-							var local_signals = []; //create signaling data for every remote peer
-							remote_signals.forEach((remote_peer) => {
-								var peer = new Peer({});
-								peer.on('signal', (local_signal) => {
-									local_signals.push(local_signal);
-								});
-								peer.signal(remote_peer);
-								peer.on('connect', () => {
-									debug(`connected to remote peer ${remote_peer}`);
-								});
-								peers.push(peer);
-								this.setState({peers: peers});
-							});
-							console.assert(remote_signals.length == local_signals.length,remote_signals,local_signals);
-							debug(`Send ${local_signals.length} requests to peering signals`);
-							this.state.ws.send(JSON.stringify(local_signals))
-							this.setState({initialized: true});
-						} else {
-							// a new peer is trying to connect with us
-							peers.forEach((peer) => {
-								debug();
-							});
-						}
-						// all peer requests have been processed, a new peering signal must be issued for next incoming client
-						var peer_init = new Peer({initiator: true});
-						peer_init.on('signal', (local_signal) => {
-							this.state.ws.send(JSON.stringify(local_signal));
-						});
-					});
+		io_patch(this.state.ws);
+		if (Peer.WEBRTC_SUPPORT) {
+		  	this.setState({
+				status_message : `Contacting server at ws://${this.props.opts.websocket.address}:${this.props.opts.websocket.port}`
+			});
+			
+			this.state.ws.on('connect', () => {
+				//waiting for peers 
+				this.setState({status_message : `Waiting for peers`});
 
-					this.state.ws.on('error', (err) => {
-						this.setState({
-							status_message : err
+				this.state.ws.on('error', err => {
+					this.setState({status_message : err});
+				});
+
+				this.state.ws.on('*', event => {
+					var name = event.data[0],
+          				msg  = event.data[1],
+			        	cb   = event.data[2];
+					switch (name.substr(0,2)) {
+						case '/#': //peer id
+							debug(`Receive message from ${name}`);
+					}
+				});
+				this.state.ws.emit(this.props.opts.ENUMERATE_PEERS, {}, announced_peers => {
+					switch (announced_peers.length) {
+					case 0:
+						this.setState({status_message: `No peer`});
+						break;
+					case 1:
+						this.setState({status_message: `Connecting to 1 peer`});
+						break;
+					default:
+						this.setState({status_message: `Connecting to ${announced_peers.length} peers`});
+					}
+					announced_peers.forEach(announced_peer => {
+						debug(`Send peer signal to ${announced_peer}`);
+						this.state.ws.emit(announced_peer,'data', r => {
+							if (r !== this.props.opts.OK) {
+								debug(`Send peer signal to ${announced_peer} failed [${r}]`);
+							}
 						});
 					});
 				});
-			} else {
-					this.setState({
-					status_message : `This browser doesn't support WebRTC.
-							  More information at http://caniuse.com/#feat=rtcpeerconnection`
-		  		});
-			}
-		} else {
-		  this.setState({
-			status_message : `This browser doesn't support WebSockets.
-							  More information at http://caniuse.com/#feat=websockets`
-		  });
+			});
+		} else {
+				this.setState({
+				status_message : `This browser doesn't support WebRTC.
+							More information at http://caniuse.com/#feat=rtcpeerconnection`
+			});
 		}
 
 		// this.state.peer.on('open', (id) => {

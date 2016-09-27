@@ -1,7 +1,13 @@
-var config = {};
+const global = {};
 
-config.websocket = {};
-config.websocket.port = process.env.WS_PORT || 8080;
-config.websocket.address = process.env.WS_ADDRESS || 'localhost';
+global.websocket = {};
+global.websocket.port = process.env.WS_PORT || 8080;
+global.websocket.address = process.env.WS_ADDRESS || 'localhost';
 
-module.exports = config;
+// define vocabulary for server/client messages
+global.ENUMERATE_PEERS   = 'EP';
+// constants for message callbacks
+global.OK                = 'OK';
+global.DISCONNECTED_PEER = 'DISCONNECTED_PEER';
+
+module.exports = global;
