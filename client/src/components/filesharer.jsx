@@ -1,7 +1,5 @@
 var React = require('react');
 var randomstring = require('randomstring');
-var io = require('socket.io-client');
-var io_patch = require('socketio-wildcard')(io.Manager);
 var Peer = require('simple-peer');
 var debug = require('debug')('simple-share');
 
@@ -11,18 +9,13 @@ export default class MainView extends React.Component {
 	};
 
 	state = {
-		ws: io(`ws://${this.props.opts.websocket.address}:${this.props.opts.websocket.port}`),
-		peers: [],
+		peers: {},
 		initialized: false,
 		status_message: 'Loading...'
 	};
 
 	constructor(props, context) {
     	super(props, context);
-
-		var ws = this.state.ws;
-		io_patch(ws);
-		this.setState({ws:ws});
 
 		if (Peer.WEBRTC_SUPPORT) {
 		  	this.setState({
@@ -83,8 +76,7 @@ export default class MainView extends React.Component {
 			result = (
 				<div>
 					<div>
-            <span>{this.props.opts.my_id_label || 'Your PeerJS ID:'} </span>
-            <strong className="mui--divider-left">null</strong>
+            			<strong className="mui--divider-left">null</strong>
 					</div>
 					{this.state.connected ? this.renderConnected() : this.renderNotConnected()}
 				</div>
